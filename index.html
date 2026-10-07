@@ -445,7 +445,7 @@ $('export').onclick = () => {
   rec.ondataavailable = e => { if (e.data.size) chunks.push(e.data); };
   rec.onstop = () => {
     const type = rec.mimeType || 'video/webm', a = document.createElement('a');
-    a.href = URL.createObjectURL(new Blob(chunks, { type })); a.download = 'lyricvibe.' + (type.includes('mp4') ? 'mp4' : 'webm'); a.click();
+    a.href = URL.createObjectURL(new Blob(chunks, { type })); a.download = 'vryt.' + (type.includes('mp4') ? 'mp4' : 'webm'); a.click();
     rec = null; $('export').textContent = 'Export'; $('export').classList.remove('rec');
     if (yt && ytReady) yt.pauseVideo(); if (audio) audio.pause(); running = false; $('play').textContent = 'Play';
     $('status').textContent = 'Saved ' + a.download + '.';
