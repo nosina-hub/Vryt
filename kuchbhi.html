@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LyricVibe</title>
+<style>
+  :root { color-scheme: dark; --bg:#050505; --panel:#0b0b0b; --line:#1c1c1c; --line2:#2a2a2a; --fg:#e8e8e8; --dim:#6e6e6e; --mid:#9a9a9a; }
+  * { box-sizing: border-box; }
+  html, body { margin:0; background:var(--bg); color:var(--fg); font:13px/1.5 ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+  header { display:flex; align-items:center; gap:12px; padding:12px 18px; border-bottom:1px solid var(--line); }
+  .logo { width:24px; height:24px; border:1px solid var(--line2); display:grid; place-items:center; font-size:10px; border-radius:4px; }
+  .brand { font-weight:600; font-size:15px; }
+  .brand span { color:var(--dim); font-weight:400; font-size:12px; margin-left:6px; }
+  #export.rec { background:#e8e8e8; color:#000; }
+  #pill { margin-left:auto; max-width:45%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; border:1px solid var(--line); border-radius:4px; padding:3px 10px; color:var(--mid); font-size:12px; }
+  main { max-width:1180px; margin:0 auto; padding:16px; display:grid; gap:14px; grid-template-columns:minmax(0,1fr); }
+  @media (min-width:900px) { main { grid-template-columns:340px minmax(0,1fr); align-items:start; } .stage { order:2; position:sticky; top:16px; } }
+  .stage { order:-1; }
+  @media (min-width:900px) { .stage { order:2; } }
+  .col { display:grid; gap:14px; }
+  .panel { background:var(--panel); border:1px solid var(--line); border-radius:6px; padding:14px; display:grid; gap:10px; }
+  h2 { margin:0; font-size:11px; font-weight:500; letter-spacing:.12em; text-transform:uppercase; color:var(--mid); }
+  canvas { --h:70vh; width:min(100%, calc(var(--h) * 0.7173)); height:auto; aspect-ratio:812/1132; justify-self:center; background:#000; border:1px solid var(--line); border-radius:4px; display:block; }
+  @media (min-width:900px) { canvas { --h:calc(100vh - 230px); } }
+  #stagebox { display:grid; justify-items:center; }
+  #stagebox:fullscreen { background:#000; align-content:center; } #stagebox:fullscreen canvas { --h:100vh; border:0; border-radius:0; }
+  .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  input, select, textarea, button { font:inherit; color:var(--fg); background:#0f0f0f; border:1px solid var(--line2); border-radius:4px; padding:8px 10px; min-width:0; }
+  input, select, textarea { flex:1; width:100%; }
+  textarea { min-height:90px; resize:vertical; }
+  button { cursor:pointer; flex:none; text-transform:uppercase; letter-spacing:.06em; font-size:12px; }
+  button:hover, select:hover { border-color:var(--mid); }
+  button.main { background:#e8e8e8; color:#000; border-color:#e8e8e8; min-width:84px; }
+  :focus-visible { outline:1px solid #fff; outline-offset:2px; }
+  input[type=file] { font-size:12px; color:var(--mid); }
+  input[type=range] { padding:0; accent-color:#e8e8e8; }
+  label { color:var(--dim); display:flex; align-items:center; gap:8px; font-size:12px; }
+  #status { color:var(--dim); font-size:12px; min-height:1.4em; }
+  #yt { width:100%; aspect-ratio:16/9; display:none; }
+  #yt.on { display:block; }
+  .times { display:flex; justify-content:space-between; color:var(--mid); font-size:12px; }
+  .track { height:2px; background:var(--line2); } .track i { display:block; height:100%; width:0; background:#e8e8e8; }
+  #tl { max-height:240px; overflow-y:auto; position:relative; border-top:1px solid var(--line); }
+  #tl div { display:flex; gap:10px; padding:6px 4px; color:var(--dim); border-bottom:1px solid var(--line); }
+  #tl div b { font-weight:400; color:#444; flex:none; }
+  #tl div span { flex:1; text-align:right; }
+  #tl div.on { color:var(--fg); background:#141414; } #tl div.on b { color:var(--mid); }
+  details summary { cursor:pointer; color:var(--mid); font-size:12px; text-transform:uppercase; letter-spacing:.08em; }
+  details[open] summary { margin-bottom:10px; } details > * + * { margin-top:8px; }
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">LV</div>
+  <div class="brand">LyricVibe<span>/ Pattern Engine</span></div>
+  <div id="pill">no track</div>
+  <button id="export">Export</button>
+</header>
+<main>
+  <section class="panel stage">
+    <h2>Lyric pattern</h2>
+    <div id="stagebox"><canvas id="c" width="812" height="1132" aria-label="Lyrics drawn as a text pattern"></canvas></div>
+    <div class="track"><i id="bar"></i></div>
+    <div class="times"><span id="tnow">00:00.00</span><span id="tdur">00:00.00</span></div>
+    <div class="row">
+      <button id="play" class="main">Play</button>
+      <button id="restart">Restart</button>
+      <button id="full" title="Full screen">Full screen</button>
+      <select id="shape" aria-label="Pattern" style="flex:1 1 140px">
+        <option value="mix">Mixed</option>
+        <option value="line">Single line</option>
+        <option value="lines3hspace">3 horizontal lines</option>
+        <option value="vh">Vertical + horizontal</option>
+      </select>
+    </div>
+    <label>Timing shift <input id="offset" type="range" min="-5" max="5" step="0.1" value="0"><span id="offv">0.0s</span></label>
+  </section>
+
+  <div class="col">
+    <section class="panel">
+      <h2>Track recognition</h2>
+      <div class="row"><input id="song" placeholder="Track title" autocomplete="off"><input id="artist" placeholder="Artist" autocomplete="off"></div>
+      <button id="find">Search &amp; match</button>
+      <select id="matches" hidden aria-label="Other matches"></select>
+      <div id="status" role="status">Showing a demo. Search a song to replace it.</div>
+      <details>
+        <summary>Paste lyrics instead</summary>
+        <textarea id="paste" placeholder="Paste lyrics. Lines with [mm:ss.xx] times are synced; plain lines are spaced evenly."></textarea>
+        <div class="row"><label>Sec / line <input id="spl" type="number" value="3.5" step="0.5" min="1" style="width:70px"></label><button id="usepaste">Use these</button></div>
+      </details>
+    </section>
+
+    <section class="panel">
+      <h2>Source stream</h2>
+      <input id="audiofile" type="file" accept="audio/*" aria-label="Audio file from your device">
+      <div class="row" style="flex-wrap:nowrap"><input id="yturl" placeholder="YouTube link" autocomplete="off"><button id="ytload">Load</button></div>
+      <div id="yt"></div>
+    </section>
+
+    <section class="panel">
+      <h2>Lyrics timeline</h2>
+      <div id="tl"></div>
+    </section>
+  </div>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+const cv = $('c'), ctx = cv.getContext('2d');
+
+// ---- lyrics state ----
+let lines = [
+  { t: 0,  text: 'your song here' },
+  { t: 3,  text: 'lines become shapes' },
+  { t: 6,  text: 'words follow the curve' },
+  { t: 9,  text: 'search a song to begin' },
+  { t: 12, text: '' }
+];
+
+function parseLRC(src, secsPerLine) {
+  const out = [], plain = [];
+  for (const raw of src.split(/\r?\n/)) {
+    const tags = [...raw.matchAll(/\[(\d+):(\d+(?:\.\d+)?)\]/g)];
+    const text = raw.replace(/\[[^\]]*\]/g, '').trim();
+    if (tags.length) tags.forEach(m => out.push({ t: +m[1] * 60 + +m[2], text }));
+    else if (text) plain.push(text);
+  }
+  if (out.length) return out.sort((a, b) => a.t - b.t);
+  return plain.map((text, i) => ({ t: i * secsPerLine, text }));
+}
+
+// ---- shapes ----
+// A shape is a list of parts. Each part is a path (t from 0 to 1 -> {x, y}, about -1..1) that the lyric is written along.
+const heartPt = t => { const a = t * Math.PI * 2;
+  return { x: 16 * Math.sin(a) ** 3 / 17, y: -(13 * Math.cos(a) - 5 * Math.cos(2 * a) - 2 * Math.cos(3 * a) - Math.cos(4 * a)) / 17 }; };
+const circ = r => t => ({ x: r * Math.cos(t * 6.2832), y: r * Math.sin(t * 6.2832) });
+const lineF = (x0, y0, x1, y1) => t => ({ x: x0 + (x1 - x0) * t, y: y0 + (y1 - y0) * t });
+const poly = pts => {
+  const n = pts.length, lens = pts.map((a, i) => { const b = pts[(i + 1) % n]; return Math.hypot(b[0] - a[0], b[1] - a[1]); });
+  const tot = lens.reduce((x, y) => x + y, 0);
+  return t => { let d = t * tot;
+    for (let i = 0; i < n; i++) { if (d <= lens[i] || i === n - 1) { const f = lens[i] ? Math.min(1, d / lens[i]) : 0, a = pts[i], b = pts[(i + 1) % n];
+      return { x: a[0] + (b[0] - a[0]) * f, y: a[1] + (b[1] - a[1]) * f }; } d -= lens[i]; } };
+};
+const catPts = (() => { const pts = [[-0.9, -0.25], [-0.78, -0.98], [-0.28, -0.6], [0, -0.52], [0.28, -0.6], [0.78, -0.98], [0.9, -0.25]];
+  for (let k = 1; k < 24; k++) { const a = k / 24 * Math.PI; pts.push([0.9 * Math.cos(a), -0.25 + 0.95 * Math.sin(a)]); } return pts; })();
+
+const R = (W, H) => Math.min(W, H) * 0.46;
+const rings = (f, scales, extra) => scales.map(s => ({ f, closed: true, s, ...extra }));
+// arrows: the lyric fills the shaft, and the two head strokes carry the first words (always written left to right)
+const arrow = (shaft, heads) => ({ sx: R, sy: R, parts: [{ f: lineF(...shaft), mode: 'fill' }, ...heads.map(h => ({ f: lineF(...h), mode: 'lead' }))] });
+// across lines: 4 diagonal strokes crossing like X marks tiled
+const acrossPts = () => [
+  { f: lineF(-0.95, -1, -0.05,  1), mode: 'fill' },
+  { f: lineF(-0.95,  1, -0.05, -1), mode: 'fill' },
+  { f: lineF( 0.05, -1,  0.95,  1), mode: 'fill' },
+  { f: lineF( 0.05,  1,  0.95, -1), mode: 'fill' },
+];
+
+// heart-h: lyrics written in horizontal rows that together fill a heart silhouette
+// We sample the heart and sort points into horizontal scan-line rows
+const heartH = (() => {
+  const rows = 9, M = 1200, pg = [], parts = [];
+  for (let k = 0; k < M; k++) { const p = heartPt(k / M); pg.push([p.x, p.y]); }
+  for (let r = 0; r < rows; r++) {
+    const yN = -0.58 + (r / (rows - 1)) * 1.46, xs = [];
+    for (let i = 0; i < M; i++) {
+      const [x0, y0] = pg[i], [x1, y1] = pg[(i + 1) % M];
+      if ((y0 <= yN && y1 > yN) || (y1 <= yN && y0 > yN)) xs.push(x0 + (yN - y0) / (y1 - y0) * (x1 - x0));
+    }
+    xs.sort((p, q) => p - q);
+    for (let i = 0; i + 1 < xs.length; i += 2) { const a = xs[i] + 0.05, b = xs[i + 1] - 0.05; if (b - a > 0.12) parts.push({ f: lineF(a, yN, b, yN), mode: 'fill' }); }
+  }
+  return parts;
+})();
+
+// 3 horizontal lines with gaps between them (wider spacing than lines3h)
+const lines3hSpaced = [-0.32, 0, 0.32].map(d => ({ f: lineF(-1, 0, 1, 0), dyr: d, mode: 'fill' }));
+
+// updated arrows: 3 at once – shaft + two heads, but emit 3 side-by-side copies
+const arrow3 = (shaft, heads, offsets) => ({
+  sx: R, sy: R,
+  parts: offsets.flatMap(dyr => [
+    { f: lineF(...shaft), mode: 'fill', dyr },
+    ...heads.map(h => ({ f: lineF(...h), mode: 'lead', dyr }))
+  ])
+});
+
+const shapes = {
+  heart:        { sx: R, sy: R, parts: rings(heartPt, [1, 0.8]) },
+  line:         { sx: W => W * 0.46, sy: R, parts: [{ f: lineF(-1, 0, 1, 0), mode: 'once' }] },
+  lines3h:      { sx: W => W * 0.46, sy: R, parts: [-0.11, 0, 0.11].map(d => ({ f: lineF(-1, 0, 1, 0), dyr: d, mode: 'fill' })) },
+  lines3v:      { sx: R, sy: (W, H) => H * 0.44, parts: [-0.14, 0, 0.14].map(d => ({ f: lineF(0, -1, 0, 1), dxr: d, mode: 'fill' })) },
+  spiral:       { sx: R, sy: R, parts: [{ f: t => { const a = t * 6.2832 * 9, r = 0.12 + 0.88 * t; return { x: r * Math.cos(a), y: r * Math.sin(a) }; }, N: 3000, mode: 'fill' }] },
+  infinity:     { sx: R, sy: R, parts: rings(t => { const a = t * 6.2832 + 1.5708, d = 1 + Math.sin(a) ** 2; return { x: Math.cos(a) / d, y: 1.1 * Math.sin(a) * Math.cos(a) / d }; }, [1]) },
+  // left arrow × 3 (stacked)
+  arrowl3:      arrow3([-0.95, 0, 0.95, 0], [[-1, 0, -0.62, -0.38], [-1, 0, -0.62, 0.38]], [-0.45, 0, 0.45]),
+  // right arrow × 3 (stacked)
+  arrowr3:      arrow3([-0.95, 0, 0.95, 0], [[0.62, -0.38, 1, 0], [0.62, 0.38, 1, 0]], [-0.45, 0, 0.45]),
+  // heart with horizontal lyric rows
+  hearth:       { sx: R, sy: R, parts: heartH },
+  // 3 horizontal lines with wider spacing (the "new pattern")
+  lines3hspace: { sx: W => W * 0.46, sy: R, parts: lines3hSpaced },
+  vh:           { sx: W => W * 0.46, sy: (W, H) => H * 0.44, parts: [...[-0.22, 0.22].map(d => ({ f: lineF(-1, 0, 1, 0), dyr: d, mode: 'fill' })), ...[-0.22, 0.22].map(d => ({ f: lineF(0, -1, 0, 1), dxr: d, mode: 'fill' }))] },
+  // across lines (X crossing pattern)
+  acrosslines:  { sx: R, sy: (W, H) => H * 0.44, parts: acrossPts() },
+};
+
+// Pattern order: line, lines3h, lines3v, arrowl3, arrowr3, hearth, line, heart, spiral, infinity, lines3hspace, line, acrosslines
+const mixOrder = [
+  'line', 'lines3h', 'lines3v', 'arrowl3', 'arrowr3', 'hearth',
+  'line', 'heart', 'spiral', 'infinity', 'lines3hspace',
+  'line', 'acrosslines'
+];
+
+// ---- clock: YouTube if playing, otherwise an internal timer ----
+let yt = null, ytReady = false, ytPlaying = false, ytStarted = false, audio = null;
+let running = false, base = 0, startedAt = 0;
+const offset = () => +$('offset').value;
+function now() {
+  if (yt && ytReady && ytStarted) return yt.getCurrentTime();
+  if (audio) return audio.currentTime;
+  return running ? base + (performance.now() - startedAt) / 1000 : base;
+}
+
+// ---- drawing ----
+function hash(n) { n = Math.sin(n * 127.1) * 43758.5453; return n - Math.floor(n); }
+const FONT = 'px ui-monospace, Menlo, Consolas, monospace';
+let cache = { key: '' };
+
+// first whole words of the lyric that fit in maxChars
+function leadWords(text, maxChars) {
+  const words = text.split(' '); let out = '';
+  for (const w of words) { const c = out ? out + ' ' + w : w; if (c.length <= maxChars) out = c; else break; }
+  return out || words[0].slice(0, Math.max(1, maxChars));
+}
+
+// Works out where every character of the lyric goes along one path: whole repeats only, evenly spaced,
+// each letter turned to follow the path.
+function layoutPart(part, sh, text, W, H, font) {
+  const sx = sh.sx(W, H), sy = sh.sy(W, H), s = part.s || 1, N = part.N || 800;
+  const ox = part.ox || 0, oy = part.oy || 0, dx = (part.dxr || 0) * W, dy = (part.dyr || 0) * W;
+  const px = [], py = [], cum = [0];
+  for (let i = 0; i <= N; i++) { const p = part.f(i / N); px.push(W / 2 + dx + (p.x * s + ox) * sx); py.push(H / 2 + dy + (p.y * s + oy) * sy); }
+  for (let i = 1; i <= N; i++) cum.push(cum[i - 1] + Math.hypot(px[i] - px[i - 1], py[i] - py[i - 1]));
+  const total = cum[N];
+  ctx.font = font + FONT; const cw = ctx.measureText('M').width;
+  const gap = '   ', per = text.length + gap.length, mode = part.mode || (part.closed ? 'loop' : 'fill');
+  let str, step, scale = 1, s0 = 0;
+  const lead = () => { str = leadWords(text, Math.floor(total / cw)); step = cw; scale = 1; s0 = (total - (str.length - 1) * step) / 2; };
+  if (mode === 'once') { str = text; scale = Math.min(1.25, total * 0.92 / (str.length * cw)); step = cw * scale; s0 = (total - (str.length - 1) * step) / 2; }
+  else if (mode === 'lead') lead();
+  else if (part.closed) {
+    const n = Math.max(1, Math.round(total / (per * cw)));
+    step = total / (n * per); scale = step / cw; str = (text + gap).repeat(n);
+    if (scale < 0.62) lead(); else scale = Math.min(1.4, scale);
+  } else {
+    const n = Math.max(1, Math.round((total + gap.length * cw) / (per * cw)));
+    str = (text + gap).repeat(n).slice(0, -gap.length); step = total / Math.max(1, str.length - 1); scale = step / cw;
+    if (scale < 0.62) lead(); else scale = Math.min(1.4, scale);
+  }
+  const glyphs = []; let j = 0;
+  for (let k = 0; k < str.length; k++) {
+    const sp = s0 + k * step;
+    while (j < N - 1 && cum[j + 1] < sp) j++;
+    const f = Math.min(1, Math.max(0, (sp - cum[j]) / ((cum[j + 1] - cum[j]) || 1)));
+    const j1 = Math.max(0, j - 3), j2 = Math.min(N, j + 4);
+    if (str[k] !== ' ') glyphs.push({ ch: str[k], k, x: px[j] + (px[j + 1] - px[j]) * f, y: py[j] + (py[j + 1] - py[j]) * f, ang: Math.atan2(py[j2] - py[j1], px[j2] - px[j1]) });
+  }
+  return { fs: Math.round(font * scale * 2) / 2, glyphs, count: str.length };
+}
+
+const fmtT = s => { const m = Math.floor(s / 60); return String(m).padStart(2, '0') + ':' + (s - m * 60).toFixed(2).padStart(5, '0'); };
+let lastIdx = -2;
+function renderTL() {
+  const tl = $('tl'); tl.innerHTML = ''; lastIdx = -2;
+  lines.forEach(l => { const d = document.createElement('div'), b = document.createElement('b'), sp = document.createElement('span');
+    b.textContent = '[' + fmtT(l.t).slice(0, 5) + ']'; sp.textContent = l.text || '...'; d.append(b, sp); tl.appendChild(d); });
+}
+function updateUI(t, idx) {
+  const dur = targetLen() || (lines.length ? lines[lines.length - 1].t + 4 : 0);
+  $('tnow').textContent = fmtT(Math.max(0, t)); $('tdur').textContent = fmtT(dur);
+  if (rec && dur && t >= dur) stopRec();
+  $('bar').style.width = (dur ? Math.min(100, Math.max(0, t) / dur * 100) : 0) + '%';
+  if (idx !== lastIdx) {
+    lastIdx = idx; const rows = $('tl').children;
+    for (let i = 0; i < rows.length; i++) rows[i].classList.toggle('on', i === idx);
+    const r = rows[idx]; if (r) $('tl').scrollTop = r.offsetTop - $('tl').clientHeight / 2 + r.clientHeight / 2;
+  }
+}
+
+function frame() {
+  const W = cv.width, H = cv.height, t = now() + offset();
+  ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
+
+  let idx = -1;
+  for (let i = 0; i < lines.length; i++) { if (lines[i].t <= t) idx = i; else break; }
+  const cur = idx >= 0 ? lines[idx] : null;
+  updateUI(t, idx);
+
+  if (cur && cur.text) {
+    const reveal = Math.min(1, (t - cur.t) / 0.9), font = Math.round(W / 29);
+    const text = cur.text.replace(/\s+/g, ' ').trim();
+    const picked = $('shape').value, key = picked === 'mix' ? mixOrder[idx % mixOrder.length] : picked;
+    const ck = [key, text, W, H].join('|');
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    if (cache.key !== ck) cache = { key: ck, parts: shapes[key].parts.map(p => layoutPart(p, shapes[key], text, W, H, font)) };
+    ctx.fillStyle = '#fff';
+    const flick = Math.floor(t * 3);
+    cache.parts.forEach((L, pi) => {
+      ctx.font = L.fs + FONT;
+      for (const g of L.glyphs) {
+        if (g.k / L.count > reveal) break;
+        ctx.globalAlpha = 0.82 + 0.18 * hash(g.k + pi * 31 + flick);
+        ctx.save(); ctx.translate(g.x, g.y); ctx.rotate(g.ang); ctx.fillText(g.ch, 0, 0); ctx.restore();
+      }
+    });
+    ctx.globalAlpha = 1;
+  }
+  requestAnimationFrame(frame);
+}
+
+// ---- controls ----
+function setLines(arr, msg, name) {
+  lines = arr; renderTL(); if (name) $('pill').textContent = name; base = 0; startedAt = performance.now();
+  if (yt && ytReady) yt.seekTo(0, true);
+  if (audio) audio.currentTime = 0;
+  $('status').textContent = msg;
+}
+
+$('play').onclick = () => {
+  if (yt && ytReady) { ytPlaying ? yt.pauseVideo() : yt.playVideo(); return; }
+  if (audio) { audio.paused ? audio.play() : audio.pause(); return; }
+  if (running) { base = now(); running = false; $('play').textContent = 'Play'; }
+  else { startedAt = performance.now(); running = true; $('play').textContent = 'Pause'; }
+};
+$('restart').onclick = () => { base = 0; startedAt = performance.now(); if (yt && ytReady) yt.seekTo(0, true); if (audio) audio.currentTime = 0; };
+$('offset').oninput = e => $('offv').textContent = (+e.target.value).toFixed(1) + 's';
+
+$('usepaste').onclick = () => {
+  const l = parseLRC($('paste').value, +$('spl').value || 3.5);
+  if (!l.length) { $('status').textContent = 'Nothing to use yet. Paste some lyrics first.'; return; }
+  setLines(l, 'Using your pasted lyrics (' + l.length + ' lines).');
+};
+
+async function lrc(params) {
+  const res = await fetch('https://lrclib.net/api/search?' + params);
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  const data = await res.json();
+  return Array.isArray(data) ? data : [];
+}
+const timed = arr => arr.filter(h => h.syncedLyrics && (h.duration == null || h.duration >= 45)).slice(0, 20);
+const fmt = sec => { const t = Math.round(sec || 0); return Math.floor(t / 60) + ':' + String(t % 60).padStart(2, '0'); };
+let found = [];   // timed matches from the last search
+
+// length to match: a loaded audio file or YouTube video, if there is one
+function targetLen() {
+  return (audio && audio.duration) || (yt && ytReady && yt.getDuration && yt.getDuration()) || 0;
+}
+
+function showMatches() {
+  if (!found.length) return;
+  const target = targetLen(), list = found.slice();
+  if (target) list.sort((x, y) => Math.abs((x.duration || 0) - target) - Math.abs((y.duration || 0) - target));
+  const pick = i => {
+    const h = list[i];
+    setLines(parseLRC(h.syncedLyrics, 3.5), 'Found: ' + h.artistName + ' - ' + h.trackName + ' (' + fmt(h.duration) + '). Press play.', h.artistName + ' - ' + h.trackName);
+  };
+  const sel = $('matches'); sel.innerHTML = '';
+  list.forEach((h, i) => sel.add(new Option(fmt(h.duration) + '  ' + h.artistName + ' - ' + h.trackName, i)));
+  sel.hidden = list.length < 2; sel.onchange = () => pick(+sel.value);
+  sel.value = 0; pick(0);
+}
+
+async function search() {
+  const song = $('song').value.trim(), artist = $('artist').value.trim(), enc = encodeURIComponent;
+  if (!song) { $('status').textContent = 'Enter a song name first.'; return; }
+  $('status').textContent = 'Searching...';
+  try {
+    let all = await lrc('track_name=' + enc(song) + (artist ? '&artist_name=' + enc(artist) : ''));
+    let hits = timed(all);
+    // also try the looser search, so versions with long titles (like "Official Video") show up too
+    const more = await lrc('q=' + enc((song + ' ' + artist).trim()));
+    const seen = new Set(hits.map(h => h.id));
+    timed(more).forEach(h => { if (!seen.has(h.id)) hits.push(h); });
+    all = all.concat(more);
+    if (!hits.length) {
+      found = []; $('matches').hidden = true;
+      $('status').textContent = all.length
+        ? 'Found the song, but only without timing. Paste the lyrics below instead.'
+        : 'No match for "' + song + '". Try just the song name, or check the spelling.';
+      return;
+    }
+    found = hits.slice(0, 20); showMatches();
+  } catch (e) {
+    $('status').textContent = 'Could not get lyrics (' + e.message + '). Try again in a moment, or paste lyrics below.';
+  }
+}
+$('find').onclick = search;
+[$('song'), $('artist')].forEach(el => el.addEventListener('keydown', e => { if (e.key === 'Enter') search(); }));
+
+// ---- audio file from the device (works without hosting) ----
+$('audiofile').onchange = e => {
+  const f = e.target.files[0]; if (!f) return;
+  if (audio) audio.pause();
+  audio = new Audio(URL.createObjectURL(f));
+  audio.onplay = () => $('play').textContent = 'Pause';
+  audio.onpause = () => $('play').textContent = 'Play';
+  audio.onended = () => { $('play').textContent = 'Play'; stopRec(); };
+  $('status').textContent = 'Loaded ' + f.name + '. Search the song, then press play.';
+};
+
+// ---- YouTube (official embedded player) ----
+function ytId(u) { const m = u.match(/(?:v=|youtu\.be\/|embed\/|shorts\/)([\w-]{11})/); return m && m[1]; }
+$('ytload').onclick = () => {
+  const id = ytId($('yturl').value);
+  if (!id) { $('status').textContent = 'That does not look like a YouTube link.'; return; }
+  $('yt').classList.add('on');
+  const make = () => {
+    if (yt) { ytStarted = false; yt.loadVideoById(id); return; }
+    yt = new YT.Player('yt', { videoId: id, playerVars: { playsinline: 1 }, events: {
+      onReady: () => { ytReady = true; },
+      onStateChange: e => { ytPlaying = e.data === 1; if (ytPlaying) ytStarted = true; $('play').textContent = ytPlaying ? 'Pause' : 'Play'; }
+    }});
+  };
+  if (window.YT && YT.Player) make();
+  else { window.onYouTubeIframeAPIReady = make; const s = document.createElement('script'); s.src = 'https://www.youtube.com/iframe_api'; document.head.appendChild(s); }
+};
+
+// ---- export: records the canvas (plus your audio file, if loaded) to a video file ----
+let rec = null, chunks = [], ac = null, adest = null;
+const recMime = () => ['video/mp4;codecs=avc1', 'video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm'].find(m => window.MediaRecorder && MediaRecorder.isTypeSupported(m)) || '';
+function stopRec() { if (rec && rec.state !== 'inactive') rec.stop(); }
+$('export').onclick = () => {
+  if (rec) { stopRec(); return; }
+  if (!window.MediaRecorder) { $('status').textContent = 'This browser cannot record video. Try Chrome.'; return; }
+  const stream = cv.captureStream(30);
+  if (audio) {
+    if (!ac) { ac = new AudioContext(); adest = ac.createMediaStreamDestination(); const src = ac.createMediaElementSource(audio); src.connect(adest); src.connect(ac.destination); }
+    ac.resume(); adest.stream.getAudioTracks().forEach(tr => stream.addTrack(tr));
+  }
+  chunks = []; const mt = recMime();
+  rec = new MediaRecorder(stream, mt ? { mimeType: mt, videoBitsPerSecond: 8e6 } : { videoBitsPerSecond: 8e6 });
+  rec.ondataavailable = e => { if (e.data.size) chunks.push(e.data); };
+  rec.onstop = () => {
+    const type = rec.mimeType || 'video/webm', a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob(chunks, { type })); a.download = 'lyricvibe.' + (type.includes('mp4') ? 'mp4' : 'webm'); a.click();
+    rec = null; $('export').textContent = 'Export'; $('export').classList.remove('rec');
+    if (yt && ytReady) yt.pauseVideo(); if (audio) audio.pause(); running = false; $('play').textContent = 'Play';
+    $('status').textContent = 'Saved ' + a.download + '.';
+  };
+  // start from the beginning and play in real time
+  base = 0; startedAt = performance.now();
+  if (yt && ytReady) { yt.seekTo(0, true); yt.playVideo(); }
+  else if (audio) { audio.currentTime = 0; audio.play(); }
+  else { running = true; $('play').textContent = 'Pause'; }
+  rec.start(500); $('export').textContent = 'Stop & save'; $('export').classList.add('rec');
+  $('status').textContent = 'Recording in real time. Keep this tab open.' + (yt && ytReady && !audio ? ' YouTube sound cannot be captured; load the audio file to include sound.' : '');
+};
+
+$('full').onclick = cv.ondblclick = () => {
+  const box = $('stagebox');
+  if (document.fullscreenElement) document.exitFullscreen();
+  else if (box.requestFullscreen) box.requestFullscreen();
+  else $('status').textContent = 'This browser does not support full screen here.';
+};
+
+renderTL();
+frame();
+</script>
+</body>
+</html>
